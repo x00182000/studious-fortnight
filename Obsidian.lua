@@ -1,58 +1,53 @@
 local HttpService = game:GetService("HttpService")
+local MarketplaceService = game:GetService("MarketplaceService")
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
-local function sendPlayerInfo(webhookUrl)
-    -- 1. Gather Player Data
+local function sendDetailedPlayerInfo(webhookUrl)
     local playerName = LocalPlayer.Name
     local userId = LocalPlayer.UserId
-    local accountAge = LocalPlayer.AccountAge
-    local membershipType = tostring(LocalPlayer.MembershipType):split(".")[3] -- e.g., "Premium" or "None"
-    local country = game:GetService("LocalizationService").RobloxLocaleId -- e.g., "en-us"
     
-    -- 2. Construct the Embed Payload
-    -- Embeds allow for a professional look with titles and fields
+    local successInfo, gameInfo = pcall(function()
+        return MarketplaceService:GetProductInfo(game.PlaceId)
+    end)
+    local gameName = successInfo and gameInfo.Name or "Unknown Game"
+    local placeId = game.PlaceId
+    local jobId = game.JobId
+    
+    local joinLink = string.format("roblox://experiences/start?placeId=%d&gameInstanceId=%s", placeId, jobId)
+
     local payload = HttpService:JSONEncode({
-        ["content"] = "🔔 **New Login Detected in 9Tendo Hub**",
+        ["username"] = "9Tendo Logging",
+        ["content"] = "🚀 **9Tendo Hub: Session Started**",
         ["embeds"] = {{
-            ["title"] = "Player Information",
-            ["color"] = 0x00FF7F, -- Green color hex
+            ["title"] = "Session Report",
+            ["color"] = 0x3498db,
             ["fields"] = {
-                {["name"] = "Username", ["value"] = playerName, ["inline"] = true},
-                {["name"] = "User ID", ["value"] = tostring(userId), ["inline"] = true},
-                {["name"] = "Account Age", ["value"] = accountAge .. " days", ["inline"] = true},
-                {["name"] = "Membership", ["value"] = membershipType, ["inline"] = true},
-                {["name"] = "Profile Link", ["value"] = "https://www.roblox.com/users/"..userId.."/profile"},
+                {["name"] = "👤 Player", ["value"] = string.format("[%s](https://www.roblox.com/users/%d/profile)", playerName, userId), ["inline"] = true},
+                {["name"] = "🎂 Account Age", ["value"] = LocalPlayer.AccountAge .. " days", ["inline"] = true},
+                {["name"] = "🎮 Game", ["value"] = gameName, ["inline"] = false},
+                {["name"] = "📍 Place ID", ["value"] = tostring(placeId), ["inline"] = true},
+                {["name"] = "🔗 Join Server (Click to Hop)", ["value"] = "[Direct Join Link](" .. joinLink .. ")", ["inline"] = false},
+                {["name"] = "📝 Job ID", ["value"] = "```" .. jobId .. "```", ["inline"] = false},
             },
-            ["footer"] = {["text"] = "9Tendo Hub Logging System"},
+            ["footer"] = {["text"] = "9Tendo Hub v1.0"},
             ["timestamp"] = DateTime.now():ToIsoDate()
         }}
     })
 
-    -- 3. Get the request method
+    -- 4. Send Request
     local req = syn and syn.request or http_request or request
-    if not req then
-        warn("[Webhook] Executor does not support HTTP requests!")
-        return
-    end
-
-    -- 4. Send the Request
-    local success, result = pcall(function()
-        return req({
-            Url = webhookUrl,
-            Method = "POST",
-            Headers = {["Content-Type"] = "application/json"},
-            Body = payload
-        })
-    end)
-
-    if success then
-        print("[9Tendo] Player info logged to Discord.")
-    else
-        warn("[9Tendo] Failed to log info.")
+    if req then
+        pcall(function()
+            req({
+                Url = webhookUrl,
+                Method = "POST",
+                Headers = {["Content-Type"] = "application/json"},
+                Body = payload
+            })
+        end)
     end
 end
 
--- Use your webhook URL here
 local myWebhook = "https://discord.com/api/webhooks/1497127092079300610/a0FS2pe86duP3r2RH97cbijN_IToJS_MY2vGd5r3zg1lNrClpguAk2xILshXAUINnzh2"
-sendPlayerInfo(myWebhook)
+sendDetailedPlayerInfo(myWebhook)
